@@ -1,0 +1,535 @@
+<script>
+  // =========================================================
+  // 1. 状態管理
+  // =========================================================
+
+  // 1.1 ゲーム全体の状態
+  const state = {
+    running: false,
+    inChance: false,
+    matchSeconds: 0,
+    homeScore: 0,
+    awayScore: 0,
+    chanceCount: 0,
+    shotCount: 0,
+    speed: 1.0,
+    chanceRate: 18,
+    goalRate: 32,
+    homeMomentum: 50,
+    awayMomentum: 50,
+    tickTimer: null,
+    currentAttackingSide: "home"
+  };
+
+  // 1.2 描画中プレイヤー管理
+  const playerNodes = [];
+
+  // =========================================================
+  // 2. DOM取得
+  // =========================================================
+
+  // 2.1 スコア・表示系
+  const clockEl = document.getElementById("clock");
+  const phaseStatusEl = document.getElementById("phaseStatus");
+  const homeScoreEl = document.getElementById("homeScore");
+  const awayScoreEl = document.getElementById("awayScore");
+  const chanceCountEl = document.getElementById("chanceCount");
+  const shotCountEl = document.getElementById("shotCount");
+  const homeMomentumEl = document.getElementById("homeMomentum");
+  const awayMomentumEl = document.getElementById("awayMomentum");
+  const eventMainEl = document.getElementById("eventMain");
+  const eventSubEl = document.getElementById("eventSub");
+  const logEl = document.getElementById("log");
+
+  // 2.2 設定UI
+  const speedRange = document.getElementById("speedRange");
+  const chanceRateRange = document.getElementById("chanceRateRange");
+  const goalRateRange = document.getElementById("goalRateRange");
+  const speedValue = document.getElementById("speedValue");
+  const chanceRateValue = document.getElementById("chanceRateValue");
+  const goalRateValue = document.getElementById("goalRateValue");
+
+  // 2.3 ピッチ演出
+  const pitchEl = document.getElementById("pitch");
+  const ballEl = document.getElementById("ball");
+  const chanceBannerEl = document.getElementById("chanceBanner");
+  const flashEl = document.getElementById("flash");
+
+  // 2.4 ボタン
+  const startBtn = document.getElementById("startBtn");
+  const pauseBtn = document.getElementById("pauseBtn");
+  const resetBtn = document.getElementById("resetBtn");
+
+  // =========================================================
+  // 3. 汎用関数
+  // =========================================================
+
+  // 3.1 小数ランダム
+  function rand(min, max) {
+    return Math.random() * (max - min) + min;
+  }
+
+  // 3.2 整数ランダム
+  function randInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  // 3.3 配列からランダム取得
+  function pick(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+  }
+
+  // 3.4 値の範囲制限
+  function clamp(v, min, max) {
+    return Math.max(min, Math.min(max, v));
+  }
+
+  // 3.5 時間表示
+  function formatClock(totalSec) {
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    return String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+  }
+
+  // 3.6 待機
+  function wait(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms / state.speed));
+  }
+
+  // =========================================================
+  // 4. UI更新
+  // =========================================================
+
+  // 4.1 数値UI更新
+  function updateUI() {
+    clockEl.textContent = formatClock(state.matchSeconds);
+    homeScoreEl.textContent = state.homeScore;
+    awayScoreEl.textContent = state.awayScore;
+    chanceCountEl.textContent = state.chanceCount;
+    shotCountEl.textContent = state.shotCount;
+    homeMomentumEl.textContent = Math.round(state.homeMomentum);
+    awayMomentumEl.textContent = Math.round(state.awayMomentum);
+
+    speedValue.textContent = state.speed.toFixed(1) + "x";
+    chanceRateValue.textContent = state.chanceRate + "%";
+    goalRateValue.textContent = state.goalRate + "%";
+  }
+
+  // 4.2 現在イベント表示
+  function setEvent(main, sub) {
+    eventMainEl.textContent = main;
+    eventSubEl.textContent = sub;
+  }
+
+  // 4.3 ログ追加
+  function addLog(text) {
+    const row = document.createElement("div");
+    row.className = "log-item";
+    row.innerHTML = `<span class="t">${formatClock(state.matchSeconds)}</span>${text}`;
+    logEl.prepend(row);
+
+    while (logEl.children.length > 28) {
+      logEl.removeChild(logEl.lastChild);
+    }
+  }
+
+  // =========================================================
+  // 5. ピッチ描画
+  // =========================================================
+
+  // 5.1 プレイヤー生成
+  function createPlayer(label, className) {
+    const el = document.createElement("div");
+    el.className = `player ${className}`;
+    el.textContent = label;
+    pitchEl.appendChild(el);
+    playerNodes.push(el);
+    return el;
+  }
+
+  // 5.2 プレイヤー全削除
+  function clearPlayers() {
+    for (const node of playerNodes) node.remove();
+    playerNodes.length = 0;
+  }
+
+  // 5.3 ボール配置
+  function placeBall(x, y) {
+    ballEl.style.left = x + "%";
+    ballEl.style.top = y + "%";
+  }
+
+  // 5.4 チャンス局面を生成
+  function createChanceScene(attackingSide, attackersCount, defendersCount) {
+    clearPlayers();
+
+    const attackers = [];
+    const defenders = [];
+
+    const attackBaseX = attackingSide === "home" ? 62 : 38;
+    const defendBaseX = attackingSide === "home" ? 78 : 22;
+    const goalX = attackingSide === "home" ? 97 : 3;
+
+    // 攻撃側
+    for (let i = 0; i < attackersCount; i++) {
+      const p = createPlayer(String(i + 1), "attacker");
+      const x = clamp(attackBaseX + rand(-10, 10), 12, 88);
+      const y = clamp(50 + rand(-22, 22), 12, 88);
+      p.style.left = x + "%";
+      p.style.top = y + "%";
+      attackers.push({ el: p, x, y });
+    }
+
+    // 守備側
+    for (let i = 0; i < defendersCount; i++) {
+      const p = createPlayer(String(i + 1), "defender");
+      const x = clamp(defendBaseX + rand(-8, 8), 12, 88);
+      const y = clamp(50 + rand(-24, 24), 10, 90);
+      p.style.left = x + "%";
+      p.style.top = y + "%";
+      defenders.push({ el: p, x, y });
+    }
+
+    // GK
+    const gk = createPlayer("GK", "goalkeeper");
+    gk.style.left = goalX + "%";
+    gk.style.top = "50%";
+
+    // ボール初期位置
+    const ballHolder = attackers[0];
+    placeBall(ballHolder.x, ballHolder.y);
+
+    return { attackers, defenders, gk, goalX };
+  }
+
+  // =========================================================
+  // 6. 通常フェーズ
+  // =========================================================
+
+  // 6.1 通常ログ候補を返す
+  function getFastLogEvent() {
+    const homeTexts = [
+      "HOMEが中盤でボールを回す",
+      "HOMEがサイドへ展開",
+      "HOMEが縦パスを狙う",
+      "HOMEが前線へ持ち上がる",
+      "HOMEが高い位置で奪い返す"
+    ];
+
+    const awayTexts = [
+      "AWAYが自陣でつなぎ直す",
+      "AWAYがカウンターの形を作る",
+      "AWAYが右サイドを突破",
+      "AWAYが中盤で主導権を握る",
+      "AWAYが前線へくさびを入れる"
+    ];
+
+    const neutral = [
+      "球際の攻防が続く",
+      "中盤で激しい奪い合い",
+      "ルーズボールを両者が追う",
+      "守備ブロックの外で様子を見る",
+      "テンポの速い攻防が続く"
+    ];
+
+    const roll = Math.random();
+    if (roll < 0.35) return pick(homeTexts);
+    if (roll < 0.70) return pick(awayTexts);
+    return pick(neutral);
+  }
+
+  // 6.2 攻勢値を少し揺らす
+  function driftMomentum() {
+    state.homeMomentum = clamp(state.homeMomentum + rand(-6, 6), 15, 85);
+    state.awayMomentum = clamp(state.awayMomentum + rand(-6, 6), 15, 85);
+
+    if (Math.random() < 0.22) {
+      if (Math.random() < 0.5) {
+        state.homeMomentum = clamp(state.homeMomentum + rand(5, 11), 15, 92);
+        state.awayMomentum = clamp(state.awayMomentum - rand(4, 9), 8, 85);
+      } else {
+        state.awayMomentum = clamp(state.awayMomentum + rand(5, 11), 15, 92);
+        state.homeMomentum = clamp(state.homeMomentum - rand(4, 9), 8, 85);
+      }
+    }
+  }
+
+  // 6.3 どちらが攻めるか決める
+  function chooseAttackingSide() {
+    const total = state.homeMomentum + state.awayMomentum;
+    const homeProb = state.homeMomentum / total;
+    return Math.random() < homeProb ? "home" : "away";
+  }
+
+  // 6.4 通常フェーズ1tick
+  async function tick() {
+    if (!state.running || state.inChance) return;
+
+    const addSec = Math.max(1, Math.round(4 * state.speed));
+    state.matchSeconds += addSec;
+
+    driftMomentum();
+
+    const logText = getFastLogEvent();
+    addLog(logText);
+    setEvent("高速試合進行中", logText);
+    updateUI();
+
+    const chanceProb = state.chanceRate / 100;
+    if (Math.random() < chanceProb) {
+      runChance();
+    }
+
+    if (state.matchSeconds >= 90 * 60) {
+      state.running = false;
+      clearInterval(state.tickTimer);
+      phaseStatusEl.textContent = "試合終了";
+      setEvent("試合終了", `HOME ${state.homeScore} - ${state.awayScore} AWAY`);
+      addLog("試合終了。");
+    }
+  }
+
+  // =========================================================
+  // 7. チャンス演出
+  // =========================================================
+
+  // 7.1 チャンス開始演出
+  function startChanceVisual(sideName, attackersCount, defendersCount) {
+    phaseStatusEl.textContent = "チャンス演出";
+    chanceBannerEl.classList.add("show");
+    flashEl.classList.add("show");
+    pitchEl.classList.add("zoom");
+
+    setEvent(
+      `${sideName}のチャンス！ ${attackersCount} vs ${defendersCount}`,
+      "局面をズーム表示。ここだけ見せ場として再生。"
+    );
+
+    addLog(`${sideName}が一気に前進。チャンス演出へ。`);
+  }
+
+  // 7.2 パス演出
+  async function playChancePassSequence(scene, sideName) {
+    const passCount = Math.random() < 0.55 ? 1 : 2;
+
+    for (let i = 0; i < passCount; i++) {
+      const target = scene.attackers[Math.min(i + 1, scene.attackers.length - 1)];
+      placeBall(target.x, target.y);
+      setEvent(
+        `${sideName}が崩しにかかる`,
+        `素早いパス交換 ${i + 1}/${passCount}`
+      );
+      await wait(520);
+    }
+  }
+
+  // 7.3 シュート成功率計算
+  function calcGoalRate(attackingSide, attackersCount, defendersCount) {
+    const baseGoalRate = state.goalRate / 100;
+    const numberBonus = (attackersCount - defendersCount) * 0.06;
+    const momentumBonus =
+      attackingSide === "home"
+        ? (state.homeMomentum - state.awayMomentum) / 250
+        : (state.awayMomentum - state.homeMomentum) / 250;
+
+    return clamp(baseGoalRate + numberBonus + momentumBonus, 0.05, 0.85);
+  }
+
+  // 7.4 シュート結果反映
+  function applyShotResult(attackingSide, finalGoalRate, sideName) {
+    const outcomeRoll = Math.random();
+
+    if (outcomeRoll < finalGoalRate) {
+      if (attackingSide === "home") state.homeScore += 1;
+      else state.awayScore += 1;
+
+      chanceBannerEl.textContent = "GOAL!";
+      chanceBannerEl.style.background = "linear-gradient(90deg,#4ade80,#22c55e)";
+      setEvent(
+        `${sideName} ゴール！`,
+        `数的優位と勢いを活かして押し切った。成功率 ${(finalGoalRate * 100).toFixed(0)}%`
+      );
+      addLog(`${sideName}のシュートが決まりゴール！`);
+    } else {
+      const failText = pick(["GKセーブ", "DFブロック", "枠外"]);
+      chanceBannerEl.textContent = failText;
+      chanceBannerEl.style.background = "linear-gradient(90deg,#fb7185,#f43f5e)";
+      setEvent(
+        `${sideName}のシュートは ${failText}`,
+        `決定機だったが得点には至らず。成功率 ${(finalGoalRate * 100).toFixed(0)}%`
+      );
+      addLog(`${sideName}の決定機は ${failText}。`);
+    }
+  }
+
+  // 7.5 チャンス終了演出
+  async function endChanceVisual() {
+    clearPlayers();
+    placeBall(50, 50);
+    pitchEl.classList.remove("zoom");
+    chanceBannerEl.classList.remove("show");
+
+    await wait(220);
+
+    chanceBannerEl.textContent = "CHANCE";
+    chanceBannerEl.style.background = "linear-gradient(90deg,#f59e0b,#facc15)";
+    phaseStatusEl.textContent = "通常フェーズ";
+    setEvent("通常フェーズへ復帰", "再び高速ログ進行。次のチャンス発生を待つ。");
+
+    state.inChance = false;
+    updateUI();
+  }
+
+  // 7.6 チャンス全体処理
+  async function runChance() {
+    if (!state.running || state.inChance) return;
+
+    state.inChance = true;
+    state.chanceCount += 1;
+    state.currentAttackingSide = chooseAttackingSide();
+
+    const attackersCount = randInt(3, 5);
+    const defendersCount = randInt(2, 4);
+    const sideName = state.currentAttackingSide === "home" ? "HOME" : "AWAY";
+
+    startChanceVisual(sideName, attackersCount, defendersCount);
+
+    const scene = createChanceScene(
+      state.currentAttackingSide,
+      attackersCount,
+      defendersCount
+    );
+
+    await wait(450);
+    flashEl.classList.remove("show");
+
+    await playChancePassSequence(scene, sideName);
+
+    const shooter = pick(scene.attackers);
+    const shotTargetY = clamp(50 + rand(-12, 12), 24, 76);
+
+    placeBall(
+      state.currentAttackingSide === "home" ? 94 : 6,
+      shotTargetY
+    );
+
+    state.shotCount += 1;
+
+    setEvent(`${sideName}がシュート！`, "キーパー・DFとの最終勝負。");
+    await wait(520);
+
+    const finalGoalRate = calcGoalRate(
+      state.currentAttackingSide,
+      attackersCount,
+      defendersCount
+    );
+
+    applyShotResult(state.currentAttackingSide, finalGoalRate, sideName);
+
+    updateUI();
+    await wait(900);
+
+    await endChanceVisual();
+  }
+
+  // =========================================================
+  // 8. 試合制御
+  // =========================================================
+
+  // 8.1 ループ開始
+  function startLoop() {
+    if (state.tickTimer) clearInterval(state.tickTimer);
+
+    const interval = Math.max(180, 700 / state.speed);
+    state.tickTimer = setInterval(() => {
+      tick();
+    }, interval);
+  }
+
+  // 8.2 試合開始
+  function startMatch() {
+    if (state.running) return;
+
+    state.running = true;
+    phaseStatusEl.textContent = "通常フェーズ";
+    setEvent("試合開始", "ログが高速で流れ始める。");
+    addLog("キックオフ。");
+    startLoop();
+  }
+
+  // 8.3 一時停止
+  function pauseMatch() {
+    state.running = false;
+    if (state.tickTimer) clearInterval(state.tickTimer);
+    phaseStatusEl.textContent = "一時停止中";
+    setEvent("一時停止", "再開するには開始ボタンを押す。");
+  }
+
+  // 8.4 リセット
+  function resetMatch() {
+    state.running = false;
+    state.inChance = false;
+
+    if (state.tickTimer) clearInterval(state.tickTimer);
+
+    state.matchSeconds = 0;
+    state.homeScore = 0;
+    state.awayScore = 0;
+    state.chanceCount = 0;
+    state.shotCount = 0;
+    state.homeMomentum = 50;
+    state.awayMomentum = 50;
+    state.currentAttackingSide = "home";
+
+    clearPlayers();
+    placeBall(50, 50);
+    pitchEl.classList.remove("zoom");
+    chanceBannerEl.classList.remove("show");
+    chanceBannerEl.textContent = "CHANCE";
+    chanceBannerEl.style.background = "linear-gradient(90deg,#f59e0b,#facc15)";
+    flashEl.classList.remove("show");
+
+    logEl.innerHTML = "";
+    phaseStatusEl.textContent = "停止中";
+    setEvent("開始ボタンで試合スタート", "高速ログが流れ、一定確率でチャンス演出に入る。");
+    updateUI();
+  }
+
+  // =========================================================
+  // 9. 入力イベント
+  // =========================================================
+
+  // 9.1 スピード変更
+  speedRange.addEventListener("input", () => {
+    state.speed = parseFloat(speedRange.value);
+    updateUI();
+
+    if (state.running && !state.inChance) {
+      startLoop();
+    }
+  });
+
+  // 9.2 チャンス率変更
+  chanceRateRange.addEventListener("input", () => {
+    state.chanceRate = parseInt(chanceRateRange.value, 10);
+    updateUI();
+  });
+
+  // 9.3 得点率変更
+  goalRateRange.addEventListener("input", () => {
+    state.goalRate = parseInt(goalRateRange.value, 10);
+    updateUI();
+  });
+
+  // 9.4 ボタン
+  startBtn.addEventListener("click", startMatch);
+  pauseBtn.addEventListener("click", pauseMatch);
+  resetBtn.addEventListener("click", resetMatch);
+
+  // =========================================================
+  // 10. 初期化
+  // =========================================================
+
+  // 10.1 初期状態セット
+  resetMatch();
+</script>
