@@ -22,7 +22,7 @@
     }
 
     /* =========================================================
-       2. ログ欄
+       2. 上の箱
     ========================================================= */
     .log-box {
       height: 520px;
@@ -30,14 +30,16 @@
       background: white;
       margin-bottom: 30px;
       padding: 20px;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
+      box-sizing: border-box;
+      position: relative;
     }
 
-    /* 開始ボタン */
+    /* 2.1 開始前の中央ボタン */
     #startBtn {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
       padding: 16px 36px;
       font-size: 32px;
       font-weight: bold;
@@ -48,17 +50,44 @@
       border-radius: 12px;
     }
 
-    /* ログエリア */
-    #logList {
+    #startBtn:hover {
+      background: #e3f2fd;
+    }
+
+    /* 2.2 試合開始後の表示エリア */
+    #matchView {
+      display: none;
       width: 100%;
       height: 100%;
+      box-sizing: border-box;
+      display: none;
+      flex-direction: column;
+    }
+
+    /* 2.3 時間表示 */
+    #timeBox {
+      text-align: center;
+      font-size: 48px;
+      font-weight: bold;
+      color: #1565c0;
+      margin-bottom: 20px;
+      flex-shrink: 0;
+    }
+
+    /* 2.4 ログ表示 */
+    #logList {
+      flex: 1;
       overflow-y: auto;
       font-size: 32px;
-      display: none;
+      color: #333;
+      padding: 10px;
+      border: 3px solid #1e88e5;
+      box-sizing: border-box;
     }
 
     .log-item {
-      margin-bottom: 12px;
+      margin-bottom: 14px;
+      line-height: 1.4;
     }
 
     /* =========================================================
@@ -80,6 +109,7 @@
       display: flex;
       flex-direction: column;
       justify-content: center;
+      box-sizing: border-box;
     }
 
     .score-team {
@@ -111,6 +141,42 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      box-sizing: border-box;
+    }
+
+    /* =========================================================
+       5. 小画面
+    ========================================================= */
+    @media (max-width: 700px) {
+      .log-box {
+        height: 380px;
+      }
+
+      #startBtn {
+        font-size: 24px;
+        padding: 12px 24px;
+      }
+
+      #timeBox {
+        font-size: 34px;
+      }
+
+      #logList {
+        font-size: 24px;
+      }
+
+      .score-team {
+        font-size: 32px;
+      }
+
+      .score-value {
+        font-size: 40px;
+      }
+
+      .menu-btn {
+        font-size: 28px;
+        height: 70px;
+      }
     }
   </style>
 </head>
@@ -119,20 +185,23 @@
   <div class="wrap">
 
     <!-- =========================================================
-         5. ログ欄
+         6. 上の箱
     ========================================================= -->
     <div class="log-box">
 
-      <!-- 5.1 最初だけ -->
+      <!-- 6.1 開始前 -->
       <button id="startBtn">試合開始</button>
 
-      <!-- 5.2 ログ表示 -->
-      <div id="logList"></div>
+      <!-- 6.2 開始後 -->
+      <div id="matchView">
+        <div id="timeBox">00:00</div>
+        <div id="logList"></div>
+      </div>
 
     </div>
 
     <!-- =========================================================
-         6. スコア
+         7. スコア
     ========================================================= -->
     <div class="score-row">
       <div class="score-box">
@@ -147,7 +216,7 @@
     </div>
 
     <!-- =========================================================
-         7. 下メニュー
+         8. 下メニュー
     ========================================================= -->
     <div class="menu-row">
       <div class="menu-btn">試合</div>
@@ -160,13 +229,34 @@
 
   <script>
     // =========================================================
-    // 8. 要素取得
+    // 9. 要素取得
     // =========================================================
     const startBtn = document.getElementById("startBtn");
+    const matchView = document.getElementById("matchView");
+    const timeBox = document.getElementById("timeBox");
     const logList = document.getElementById("logList");
 
     // =========================================================
-    // 9. ログ追加関数
+    // 10. 状態
+    // =========================================================
+    let matchSeconds = 0;
+    let timerId = null;
+
+    // =========================================================
+    // 11. 時間表示
+    // =========================================================
+    function formatTime(totalSeconds) {
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      return String(minutes).padStart(2, "0") + ":" + String(seconds).padStart(2, "0");
+    }
+
+    function updateTime() {
+      timeBox.textContent = formatTime(matchSeconds);
+    }
+
+    // =========================================================
+    // 12. ログ追加
     // =========================================================
     function addLog(text) {
       const row = document.createElement("div");
@@ -176,17 +266,25 @@
     }
 
     // =========================================================
-    // 10. 試合開始
+    // 13. 試合開始
     // =========================================================
     startBtn.addEventListener("click", () => {
-      // ボタン消す
+      // 13.1 ボタンを消す
       startBtn.style.display = "none";
 
-      // ログモードON
-      logList.style.display = "block";
+      // 13.2 時間＋ログ表示を出す
+      matchView.style.display = "flex";
 
-      // 最初のログ
+      // 13.3 初期表示
+      matchSeconds = 0;
+      updateTime();
       addLog("キックオフ");
+
+      // 13.4 時間を進める
+      timerId = setInterval(() => {
+        matchSeconds += 1;
+        updateTime();
+      }, 1000);
     });
   </script>
 </body>
