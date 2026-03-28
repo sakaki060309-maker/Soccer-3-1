@@ -7,7 +7,7 @@
 
   <style>
     /* =========================================================
-       1. 全体設定
+       1. 全体
     ========================================================= */
     body {
       margin: 0;
@@ -22,7 +22,7 @@
     }
 
     /* =========================================================
-       2. 上のログ欄
+       2. ログ欄
     ========================================================= */
     .log-box {
       height: 520px;
@@ -30,51 +30,39 @@
       background: white;
       margin-bottom: 30px;
       padding: 20px;
-      font-size: 48px;
-      color: #333;
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
     }
 
-    .log-title {
-      font-size: 48px;
-      margin-bottom: 30px;
-      color: #1565c0;
-      font-weight: bold;
-    }
-
-    .log-main {
-      font-size: 72px;
-      font-weight: bold;
-      margin-bottom: 30px;
-    }
-
-    .log-sub {
-      font-size: 48px;
-      text-align: center;
-    }
-
-    /* 2.1 ログ欄の中の開始ボタン */
+    /* 開始ボタン */
     #startBtn {
       padding: 16px 36px;
       font-size: 32px;
       font-weight: bold;
-      margin-bottom: 30px;
       border: 3px solid #1e88e5;
-      background: #ffffff;
+      background: white;
       color: #1565c0;
       cursor: pointer;
       border-radius: 12px;
     }
 
-    #startBtn:hover {
-      background: #e3f2fd;
+    /* ログエリア */
+    #logList {
+      width: 100%;
+      height: 100%;
+      overflow-y: auto;
+      font-size: 32px;
+      display: none;
+    }
+
+    .log-item {
+      margin-bottom: 12px;
     }
 
     /* =========================================================
-       3. スコアエリア
+       3. スコア
     ========================================================= */
     .score-row {
       display: grid;
@@ -96,7 +84,6 @@
 
     .score-team {
       font-size: 48px;
-      margin-bottom: 12px;
       font-weight: bold;
     }
 
@@ -106,7 +93,7 @@
     }
 
     /* =========================================================
-       4. 下4つのメニュー
+       4. 下メニュー
     ========================================================= */
     .menu-row {
       display: grid;
@@ -124,47 +111,6 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      user-select: none;
-    }
-
-    /* =========================================================
-       5. スマホ・小画面対応
-    ========================================================= */
-    @media (max-width: 700px) {
-      .log-box {
-        height: 380px;
-        font-size: 32px;
-      }
-
-      .log-title {
-        font-size: 32px;
-      }
-
-      .log-main {
-        font-size: 48px;
-      }
-
-      .log-sub {
-        font-size: 32px;
-      }
-
-      #startBtn {
-        font-size: 24px;
-        padding: 12px 24px;
-      }
-
-      .score-team {
-        font-size: 32px;
-      }
-
-      .score-value {
-        font-size: 40px;
-      }
-
-      .menu-btn {
-        font-size: 28px;
-        height: 70px;
-      }
     }
   </style>
 </head>
@@ -173,32 +119,35 @@
   <div class="wrap">
 
     <!-- =========================================================
-         6. ログ欄
+         5. ログ欄
     ========================================================= -->
     <div class="log-box">
 
-      <!-- 6.1 最初だけ表示する試合開始ボタン -->
+      <!-- 5.1 最初だけ -->
       <button id="startBtn">試合開始</button>
+
+      <!-- 5.2 ログ表示 -->
+      <div id="logList"></div>
 
     </div>
 
     <!-- =========================================================
-         7. スコア表示
+         6. スコア
     ========================================================= -->
     <div class="score-row">
       <div class="score-box">
         <div class="score-team">Home</div>
-        <div class="score-value">スコア 0</div>
+        <div class="score-value">0</div>
       </div>
 
       <div class="score-box">
         <div class="score-team">Away</div>
-        <div class="score-value">スコア 0</div>
+        <div class="score-value">0</div>
       </div>
     </div>
 
     <!-- =========================================================
-         8. 下メニュー
+         7. 下メニュー
     ========================================================= -->
     <div class="menu-row">
       <div class="menu-btn">試合</div>
@@ -211,20 +160,34 @@
 
   <script>
     // =========================================================
-    // 9. 要素を取得する部分
+    // 8. 要素取得
     // =========================================================
     const startBtn = document.getElementById("startBtn");
-    const logMain = document.getElementById("logMain");
-    const logSub = document.getElementById("logSub");
+    const logList = document.getElementById("logList");
 
     // =========================================================
-    // 10. 試合開始ボタンの処理
+    // 9. ログ追加関数
+    // =========================================================
+    function addLog(text) {
+      const row = document.createElement("div");
+      row.className = "log-item";
+      row.textContent = text;
+      logList.prepend(row);
+    }
+
+    // =========================================================
+    // 10. 試合開始
     // =========================================================
     startBtn.addEventListener("click", () => {
-      // 10.1 ボタンを消す
+      // ボタン消す
       startBtn.style.display = "none";
 
-      });
+      // ログモードON
+      logList.style.display = "block";
+
+      // 最初のログ
+      addLog("キックオフ");
+    });
   </script>
 </body>
 </html>
