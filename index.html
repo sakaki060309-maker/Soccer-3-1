@@ -4,7 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Soccer UI Phase0</title>
+
   <style>
+    /* =========================================================
+       1. 全体設定
+    ========================================================= */
     body {
       margin: 0;
       background: #e9e9e9;
@@ -17,7 +21,9 @@
       margin: 40px auto;
     }
 
-    /* 1. 上の大きいログ欄 */
+    /* =========================================================
+       2. 上のログ欄
+    ========================================================= */
     .log-box {
       height: 520px;
       border: 4px solid #1e88e5;
@@ -35,6 +41,8 @@
     .log-title {
       font-size: 48px;
       margin-bottom: 30px;
+      color: #1565c0;
+      font-weight: bold;
     }
 
     .log-main {
@@ -45,9 +53,29 @@
 
     .log-sub {
       font-size: 48px;
+      text-align: center;
     }
 
-    /* 2. スコアエリア */
+    /* 2.1 ログ欄の中の開始ボタン */
+    #startBtn {
+      padding: 16px 36px;
+      font-size: 32px;
+      font-weight: bold;
+      margin-bottom: 30px;
+      border: 3px solid #1e88e5;
+      background: #ffffff;
+      color: #1565c0;
+      cursor: pointer;
+      border-radius: 12px;
+    }
+
+    #startBtn:hover {
+      background: #e3f2fd;
+    }
+
+    /* =========================================================
+       3. スコアエリア
+    ========================================================= */
     .score-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -69,6 +97,7 @@
     .score-team {
       font-size: 48px;
       margin-bottom: 12px;
+      font-weight: bold;
     }
 
     .score-value {
@@ -76,7 +105,9 @@
       font-weight: bold;
     }
 
-    /* 3. 下4つのボタン枠 */
+    /* =========================================================
+       4. 下4つのメニュー
+    ========================================================= */
     .menu-row {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
@@ -88,6 +119,7 @@
       background: white;
       height: 90px;
       font-size: 40px;
+      font-weight: bold;
       color: #1565c0;
       display: flex;
       align-items: center;
@@ -95,6 +127,9 @@
       user-select: none;
     }
 
+    /* =========================================================
+       5. スマホ・小画面対応
+    ========================================================= */
     @media (max-width: 700px) {
       .log-box {
         height: 380px;
@@ -113,6 +148,11 @@
         font-size: 32px;
       }
 
+      #startBtn {
+        font-size: 24px;
+        padding: 12px 24px;
+      }
+
       .score-team {
         font-size: 32px;
       }
@@ -128,17 +168,27 @@
     }
   </style>
 </head>
+
 <body>
   <div class="wrap">
 
-    <!-- 1. ログ欄 -->
+    <!-- =========================================================
+         6. ログ欄
+    ========================================================= -->
     <div class="log-box">
       <div class="log-title">ログ</div>
-      <div class="log-main">or</div>
-      <div class="log-sub">試合画面</div>
+
+      <!-- 6.1 最初だけ表示する試合開始ボタン -->
+      <button id="startBtn">試合開始</button>
+
+      <!-- 6.2 ログ表示 -->
+      <div class="log-main" id="logMain">or</div>
+      <div class="log-sub" id="logSub">試合画面</div>
     </div>
 
-    <!-- 2. スコア -->
+    <!-- =========================================================
+         7. スコア表示
+    ========================================================= -->
     <div class="score-row">
       <div class="score-box">
         <div class="score-team">Home</div>
@@ -151,7 +201,9 @@
       </div>
     </div>
 
-    <!-- 3. 下メニュー -->
+    <!-- =========================================================
+         8. 下メニュー
+    ========================================================= -->
     <div class="menu-row">
       <div class="menu-btn">試合</div>
       <div class="menu-btn">チーム</div>
@@ -160,5 +212,26 @@
     </div>
 
   </div>
+
+  <script>
+    // =========================================================
+    // 9. 要素を取得する部分
+    // =========================================================
+    const startBtn = document.getElementById("startBtn");
+    const logMain = document.getElementById("logMain");
+    const logSub = document.getElementById("logSub");
+
+    // =========================================================
+    // 10. 試合開始ボタンの処理
+    // =========================================================
+    startBtn.addEventListener("click", () => {
+      // 10.1 ボタンを消す
+      startBtn.style.display = "none";
+
+      // 10.2 ログの文字を変える
+      logMain.textContent = "試合開始";
+      logSub.textContent = "ここから試合が始まる";
+    });
+  </script>
 </body>
 </html>
